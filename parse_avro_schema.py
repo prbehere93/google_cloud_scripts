@@ -45,12 +45,71 @@ def convert_to_named_tuple(file_name,field_names,types):
 
     return NamedTuple(class_name,typing_info)
 
-if __name__=='__main__':
-    bucket_name = 'test-bucket-1173'
-    schema_file_name = 'twitter.avsc'
 
-    field_names,types = get_avro_schema_from_file(bucket_name, schema_file_name)
+import apache_beam as beam
+import apache_beam.transforms.sql as sql
+from apache_beam import coders
+from collections import namedtuple
+from typing import NamedTuple
 
-    Schema = convert_to_named_tuple(schema_file_name,field_names,types)
+argv = [
+'--project=advance-rush-349804',
+'--staging_location=gs://test-bucket-1173/f1',
+'--temp_location=gs://test-bucket-1173/f1',
+'--region=asia-south2',
+'--runner=DataflowRunner',
+'--save_main_session'
+]
 
-    print(Schema)
+bucket_name = 'test-bucket-1173'
+schema_file_name1 = 'twitter.avsc'
+# schema_file_name2 = 'twitter.avsc'
+
+field_names1,types1 = get_avro_schema_from_file(bucket_name, schema_file_name1)
+# field_names2,types2 = get_avro_schema_from_file(bucket_name, schema_file_name2)
+
+Schema1 = convert_to_named_tuple(schema_file_name1,field_names1,types1)
+# Schema2 = convert_to_named_tuple(schema_file_name2,field_names2,types2)
+
+
+
+table_spec = "gs://test-bucket-1173/twitter.avro"
+target = "advance-rush-349804:test_dataset_28.test-table-5000"
+
+p = beam.Pipeline(argv=argv)
+
+
+coders.registry.register_coder(Schema1,coders.RowCoder)
+# coders.registry.register_coder(Schema2,coders.RowCoder)
+
+
+source_pipeline = 'left_table'
+left_table = (p
+                |'ReadAvroFromGCS_A' >> beam.io.avroio.ReadFromAvro(table_spec)
+                |'MapLeft' >> beam.Map(lambda x: beam.Row(**x)).with_output_types(Schema1)
+            )
+
+join_pipeline = 'right_table'
+right_table = (p
+                |'ReadAvroFromGCS_B' >> beam.io.avroio.ReadFromAvro(table_spec)
+                |'MapRight' >> beam.Map(lambda x: beam.Row(**x)).with_output_types(Schema1)
+            )
+
+pipelines_dict = {source_pipeline:left_table,
+                    join_pipeline:right_table}
+
+output = (pipelines_dict
+            |sql.SqlTransform("""select * from left_table as l inner join right_table as r on l.username=r.username""")
+            |beam.Map(lambda row: row._asdict())
+            |beam.io.WriteToBigQuery(target,schema="SCHEMA_AUTODETECT",
+                                    write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+                                    create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                                    )
+        )
+try:
+    p.run().wait_until_finish()
+    print(output)
+except Exception as e:
+    print(e)
+finally:
+    print('Sure')
