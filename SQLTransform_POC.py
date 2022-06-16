@@ -10,7 +10,7 @@ argv = [
     '--project=advance-rush-349804',
     '--staging_location=gs://test-bucket-1173/f1',
     '--temp_location=gs://test-bucket-1173/f1',
-    '--region=asia-south2',
+    '--region=us-central1',
     '--runner=DataflowRunner',
     '--save_main_session'
 ]

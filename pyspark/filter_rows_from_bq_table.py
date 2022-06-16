@@ -14,7 +14,7 @@ df = df.select(*['Type','Transaction_Date','Branch','Organization',
     'Acc_no','Cash_Amount','Transaction_type','Application_ID']).filter(F.col('Type')=='Teller')
 
 df.show()
-#The below code can be used the 
+
 # df.createOrReplaceTempView("tempdf")
 # df = spark.sql("SELECT * FROM tempdf WHERE Type='Teller'")
 
