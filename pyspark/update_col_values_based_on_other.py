@@ -11,8 +11,6 @@ df = spark.read.format("bigquery").option(
 
 df_CTR = df.filter(F.col('Type')=='Teller').toPandas()
 
-df_CTR.iterrows()
-
 for index,row in df_CTR.iterrows():
     df = df.withColumn('Is_Match', F.when((F.col("Transaction_Date") == row['Transaction_Date']
     ) & (F.col("Branch") == row['Branch']) & (
